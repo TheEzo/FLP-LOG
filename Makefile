@@ -1,9 +1,8 @@
 # Willaschek Tomas
 # FLP-LOG
-SRC=flp20-log.pl
-START=start
-
+SRC=src/flp20-log.pl
+GOAL=start
 
 default:
-	swipl -o flp20-log ${SRC} -g ${START}
+	swipl -q -g ${GOAL} -o flp20-log -c ${SRC}
 
