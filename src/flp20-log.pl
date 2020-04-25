@@ -40,22 +40,70 @@ start :-
 		prompt(_, ''),
 		read_lines(LL),
 		split_lines(LL,S),
-		convert_rules(S,NL),
-		print_inp(NL),
+		convert_rules(S,NewRules),
+		print_inp(NewRules),
 		writeln('---------------'),
-		test_rules(NL),
-		%% get_vertices(NL,V),
-		%% length(V,A),
-		%% writeln(A),
-		%% get_solved([['A','B'],['C','A'],['C','D']],_,X),
-		%% writeln(X),
+		get_vertices(NewRules,HamV),
+		%% writeln('---------------'),
+		test_run(NewRules,HamV,Res),
+		%% writeln(Res),
 		halt.
 
-test_rules([]).
-test_rules([R|Rs]) :- test_r([R|Rs]), writeln(), test_rules(Rs).
 
-test_r([]).
-test_r([R|Rs]) :- write(R), test_r(Rs).
+test_run([],_,[]).
+test_run([_|[]],_,[]).
+test_run([R|[R2|Rs]],HamV,Final) :- 
+	get_vertices([R],V), get_circle([R],[R2|Rs],[],HamV,[],Res1),
+	%% writeln([R|[R2|Rs]]),
+	test_run([R2|Rs],HamV,_), test_run([R|Rs],HamV,_),
+	writeln(Res1),
+	Final=Res.
+
+/** najde kruznici, ktera jeste neexistuje, nebo [] 
+  * Rls:   predchozi usecky, ktere tvori cast kruznice
+  * Rs:    usecky ke zpracovani
+  * Crcls: seznam existujicich kruznic
+  * HamV:  seznam vsech dostupnych bodu pres ktere ma vest kruznice
+  * Slvd:  seznam vyresenych bodu pro Rls
+  * Res:   Vsechny kruznice, return */
+get_circle(_,[],R,_,_,R).
+get_circle(Rls,[R|Rs],Crcls,HamV,Slvd,Res) :- % pravidlo pridalo dalsi bod a je ham kruznice
+	%% writeln('0-----'),
+	get_vertices(Rls,V), length(V,L), join_lists(Rls, [R], NewRls),
+	get_vertices(NewRls, NewVerts), is_ham(NewRls,HamV),
+	join_lists(Crcls,[NewRls],NewCrcls),
+	get_circle(Rls,Rs,NewCrcls,HamV,Slvd,Res).
+get_circle(Rls,[R|Rs],Crcls,HamV,Slvd,Res) :- % pravidlo pridalo dalsi bod a neni ham kruznice
+	%% writeln('1-----'), writeln(Rls),
+	get_vertices(Rls,V), length(V,L), join_lists(Rls, [R], NewRls), check_rules(NewRls,L,Slvd),
+	get_vertices(NewRls, NewVerts), get_solved(NewRls,_,NewSlvd),
+	get_circle(NewRls,Rs,Crcls,HamV,NewSlvd,Res).
+get_circle(Rls,[R|Rs],Crcls,HamV,Slvd,Res) :- % pravidlo nepridalo dalsi bod (pop R)
+	%% writeln('2-----'), writeln(Rls),
+	get_circle(Rls,Rs,Crcls,HamV,Slvd,Res).
+get_circle(_,_,_,_,_,_) :- writeln('BBBiiiiiiiiiiiiiiiiiig fail').
+
+
+
+/** zkontroluje, jestli pribyl nejaky bod kruznice
+  * Rls:  usecky 
+  * Len:  delka vyresenych bodu bez pridaneho 
+  * Slvd: Jiz vyresene vrcholy */
+check_rules(Rls,Len,Slvd) :- 
+	%% writeln('check1'), writeln(Rls), writeln(Slvd),
+	get_vertices(Rls,V), length(V,L), get_solved(Rls,_,SlvdNew), 
+	length(SlvdNew,LS2), length(Slvd,LS1), !,
+	( Len+1<L -> (true); % pribyly 2 symboly
+		(Len<L, LS1<LS2) -> (true); % pribyl jeden symbol + jeden se vyresil
+		(false )). % spatna usecka
+
+/** Zjisti, zda se jedna o Ham kruznici
+  * usecky
+  * body ktere maji tvorit kruznici */
+is_ham(Rls,HamV) :- get_solved(Rls,_,Slvd), same_lists(HamV,Slvd) -> true; fail.
+
+
+
 
 /************ SHOULD BE OK *****************/
 
@@ -115,7 +163,11 @@ get_line_vertices([C|Cs],R) :- get_line_vertices(Cs,X), R=[C|X].
 print_inp([]).
 print_inp([A|As]) :- writeln(A), print_inp(As).
 
-
+/* zkontroluje, jestli prvni list je obsazen ve druhem 
+ * Spousti se s hledanymi vrcholy jako 1. param. a nalezenymi vrcholy jako 2. param. */
+same_lists([],_) :- true.
+same_lists([A|As],B) :- member(A,B), same_lists(As,B).
+same_lists(_,_) :- false.
 
 
 
