@@ -37,29 +37,50 @@ split_lines([],[]).
 split_lines([L|Ls],[H|T]) :- split_lines(Ls,T), split_line(L,H).
 
 start :-
+		get_time(T1),
 		prompt(_, ''),
 		read_lines(LL),
 		split_lines(LL,S),
-		convert_rules(S,NewRules),
-		print_inp(NewRules),
-		writeln('---------------'),
-		get_vertices(NewRules,HamV),
+		convert_rules(S,TmpRules),
+		%% print_inp(TmpRules),
+		remove_switched_input(TmpRules,NewRules),
 		%% writeln('---------------'),
-		test_run(NewRules,HamV,Res),
-		%% writeln(Res),
+		get_vertices(NewRules,HamV),
+		run(NewRules,HamV,Res),
+		%% writeln('---------------'),
+		remove_duplicated_res(Res,Final),
+		write_output(Final),
+		get_time(T2),
+  		DeltaT is T2- T1,
+  		write('time: '), write(DeltaT), write('  ms.\n'),
 		halt.
 
 
-test_run([],_,[]).
-test_run([_|[]],_,[]).
-test_run([R|[R2|Rs]],HamV,Final) :- 
-	get_vertices([R],V), get_circle([R],[R2|Rs],[],HamV,[],Res1),
-	%% writeln([R|[R2|Rs]]),
-	test_run([R2|Rs],HamV,_), test_run([R|Rs],HamV,_),
-	writeln(Res1),
-	Final=Res.
 
-/** najde kruznici, ktera jeste neexistuje, nebo [] 
+%% start :-
+%% 	A=[['A','B']],
+%% 	B=[['A','C'],['A','D'],['B','C'],['B','D'],['C','D']],
+%% 	C=['A','B','C','D'],
+%% 	get_circle(A,B,[],C,[],R),
+%% 	format('~nResult: ~w~n', [R]),
+%% 	halt.
+
+
+/* Spusti get_circle s variacemi vstupu */
+run([],_,[]).
+run([_|[]],_,[]).
+run([R|[R2|Rs]],HamV,Final) :- 
+	Rule=[R|[R2|Rs]], length(HamV,L1), length(Rule,L2), L1=<L2,
+	%% format('input: ~w~n', [[R|[R2|Rs]]]),
+	get_circle([R],[R2|Rs],[],HamV,[],Res1),
+	run([R2|Rs],HamV,Res2), join_lists(Res1,Res2,Res4),
+	run([R|Rs],HamV,Res3), join_lists(Res3,Res4,Final).
+run(_,_,_).
+
+
+
+
+/** najde kruznici nebo [] 
   * Rls:   predchozi usecky, ktere tvori cast kruznice
   * Rs:    usecky ke zpracovani
   * Crcls: seznam existujicich kruznic
@@ -68,21 +89,26 @@ test_run([R|[R2|Rs]],HamV,Final) :-
   * Res:   Vsechny kruznice, return */
 get_circle(_,[],R,_,_,R).
 get_circle(Rls,[R|Rs],Crcls,HamV,Slvd,Res) :- % pravidlo pridalo dalsi bod a je ham kruznice
-	%% writeln('0-----'),
-	get_vertices(Rls,V), length(V,L), join_lists(Rls, [R], NewRls),
-	get_vertices(NewRls, NewVerts), is_ham(NewRls,HamV),
-	join_lists(Crcls,[NewRls],NewCrcls),
+	writeln('0-----'),
+	join_lists(Rls, [R], NewRls), is_ham(NewRls,HamV), !, 
+	join_lists(Crcls,[NewRls],NewCrcls), 
+	%% format('DONE ~w----------------------~n', [NewRls]),
 	get_circle(Rls,Rs,NewCrcls,HamV,Slvd,Res).
 get_circle(Rls,[R|Rs],Crcls,HamV,Slvd,Res) :- % pravidlo pridalo dalsi bod a neni ham kruznice
-	%% writeln('1-----'), writeln(Rls),
-	get_vertices(Rls,V), length(V,L), join_lists(Rls, [R], NewRls), check_rules(NewRls,L,Slvd),
-	get_vertices(NewRls, NewVerts), get_solved(NewRls,_,NewSlvd),
-	get_circle(NewRls,Rs,Crcls,HamV,NewSlvd,Res).
+	writeln('1-----'),
+	get_vertices(Rls,V), length(V,L), join_lists(Rls, [R], NewRls), 
+	%% format('NewRls: ~w slvd: ~w~n', [NewRls, Slvd]), 
+	check_rules(NewRls,L,Slvd), !, 
+	get_solved(NewRls,_,NewSlvd), get_circle(NewRls,Rs,Crcls,HamV,NewSlvd,Res1),
+	%% format('Next: ~w rest: ~w~n', [Rls, Rs]), 
+	get_circle(Rls,Rs,Crcls,HamV,Slvd,Res2), join_lists(Res1,Res2,Res).
 get_circle(Rls,[R|Rs],Crcls,HamV,Slvd,Res) :- % pravidlo nepridalo dalsi bod (pop R)
-	%% writeln('2-----'), writeln(Rls),
+	writeln('2-----'),
+	join_lists(Rls,Rs,TmpRules), length(TmpRules,L2), length(HamV,L1), 
+	%% format('2-------rules: ~w~n', [TmpRules]),writeln(L1=<L2), L1-1=<L2,
 	get_circle(Rls,Rs,Crcls,HamV,Slvd,Res).
+get_circle(Rls,[_|Rs],_,HamV,_,_) :- join_lists(Rls,Rs,TmpRules), format('Skipped: ~w~n', [TmpRules]).
 get_circle(_,_,_,_,_,_) :- writeln('BBBiiiiiiiiiiiiiiiiiig fail').
-
 
 
 /** zkontroluje, jestli pribyl nejaky bod kruznice
@@ -90,22 +116,19 @@ get_circle(_,_,_,_,_,_) :- writeln('BBBiiiiiiiiiiiiiiiiiig fail').
   * Len:  delka vyresenych bodu bez pridaneho 
   * Slvd: Jiz vyresene vrcholy */
 check_rules(Rls,Len,Slvd) :- 
-	%% writeln('check1'), writeln(Rls), writeln(Slvd),
 	get_vertices(Rls,V), length(V,L), get_solved(Rls,_,SlvdNew), 
-	length(SlvdNew,LS2), length(Slvd,LS1), !,
-	( Len+1<L -> (true); % pribyly 2 symboly
-		(Len<L, LS1<LS2) -> (true); % pribyl jeden symbol + jeden se vyresil
-		(false )). % spatna usecka
+	length(SlvdNew,LS2), length(Slvd,LS1), 
+	%% format('NewSlvd ~w~n', [SlvdNew]), writeln(Len+1<L), writeln(LS1<LS2),
+	!, ((Len<L, LS1<LS2) -> (true); % pribyl jeden symbol + jeden se vyresil
+		(Len+1<L -> (true); % pribyly 2 symboly
+		  (LS1+1<LS2 -> (true); % vyresily se 2 symboly
+		    ((false))))). % spatna usecka
 
 /** Zjisti, zda se jedna o Ham kruznici
   * usecky
   * body ktere maji tvorit kruznici */
-is_ham(Rls,HamV) :- get_solved(Rls,_,Slvd), same_lists(HamV,Slvd) -> true; fail.
-
-
-
-
-/************ SHOULD BE OK *****************/
+is_ham(Rls,HamV) :- get_solved(Rls,_,Slvd), same_lists(HamV,Slvd), true.
+is_ham(_,_) :- false.
 
 /*get_solved([['A','B'],['C','A'],['C','D']],_,X)*/
 /** najde vyresene vrcholy [[A,B],[C,B]] => [B]
@@ -114,7 +137,7 @@ is_ham(Rls,HamV) :- get_solved(Rls,_,Slvd), same_lists(HamV,Slvd) -> true; fail.
   * vysledek */
 get_solved([],A,B) :- A=[], B=[].
 get_solved([R|Rs],A,V) :- 
-	get_solved(Rs,B,C), get_vertices([R],X), join_lists(B,X,A), get_duplicated(A,V).
+	get_solved(Rs,B,_), get_vertices([R],X), join_lists(B,X,A), get_duplicated(A,V).
 
 /* najde prvky, ktere se v seznamu vyskytuji vicekrat */
 get_duplicated([],[]).
@@ -169,75 +192,38 @@ same_lists([],_) :- true.
 same_lists([A|As],B) :- member(A,B), same_lists(As,B).
 same_lists(_,_) :- false.
 
+/* Vypis na vystup v korektnim formatu */
+write_output([]).
+write_output([R|Rs]) :- write_line(R), writeln(''), write_output(Rs).
 
+write_line([]).
+write_line([R|[]]) :- write_item(R).
+write_line([R|Rs]) :- write_item(R), write(' '), write_line(Rs).
 
+write_item([]).
+write_item([R|[]]) :- write(R).
+write_item([R|Rs]) :- write(R), write('-'), write_item(Rs).
 
+delete_last([],[]).
+delete_last([_|[]],[]).
+delete_last([X|Xs],Y) :- delete_last(Xs,Z), Y=[X|Z].
 
+/* odstrani jedno z [C,D],[D,C] pokud existuje */
+remove_switched_input([],[]).
+remove_switched_input([X|Xs],Res) :- member_lists(X,Xs), remove_switched_input(Xs,Res).
+remove_switched_input([X|Xs],Res) :- reverse_list(X,[],Y), member_lists(Y,Xs), remove_switched_input(Xs,Res).
+remove_switched_input([X|Xs],Res) :- remove_switched_input(Xs,Y), Res=[X|Y].
 
+/* otoci list naopak */
+reverse_list([],X,X).
+reverse_list([X|Xs],Y,Z) :- reverse_list(Xs,[X|Y],Z). 
 
+/* smaze duplikovane vysledky */
+remove_duplicated_res([],[]).
+remove_duplicated_res([R|Rs],V) :- member_lists(R,Rs), remove_duplicated_res(Rs,V).
+remove_duplicated_res([R|Rs],V) :- remove_duplicated_res(Rs,X), V=[R|X].
 
-
-
-
-
-
-
-
-/** nacte zadany pocet radku */
-read_lines2([],0).
-read_lines2(Ls,N) :-
-	N > 0,
-	read_line(L,_),
-	N1 is N-1,
-	read_lines2(LLs, N1),
-	Ls = [L|LLs].
-
-
-/** vypise seznam radku (kazdy radek samostatne) */
-write_lines2([]).
-write_lines2([H|T]) :- writeln(H), write_lines2(T). %(writeln je "knihovni funkce")
-
-
-/** rozdeli radek na podseznamy -- pracuje od konce radku */
-%zalozit prvni (tzn. posledni) seznam:
-split_line2([],[[]]) :- !.
-%pridat novy seznam:
-split_line2([' '|T], [[]|S1]) :- !, split_line2(T,S1).
-%pridat novy seznam, uchovat oddelujici znak:
-split_line2([H|T], [[],[H]|S1]) :- (H=','; H=')'; H='('), !, split_line2(T,S1).
-%pridat znak do existujiciho seznamu:
-split_line2([H|T], [[H|G]|S1]) :- split_line2(T,[G|S1]).
-
-
-/** pro vsechny radky vstupu udela split_line2 */
-% vstupem je seznam radku (kazdy radek je seznam znaku)
-split_lines2([],[]).
-split_lines2([L|Ls],[H|T]) :- split_lines2(Ls,T), split_line2(L,H).
-
-
-/** nacte N radku vstupu, zpracuje, vypise */
-start2(N) :-
-		prompt(_, ''),
-		read_lines2(LL, N),
-		split_lines2(LL,S),
-		write_lines2(S).
-
-
-/** prevede retezec na seznam atomu */
-% pr.: string("12.35",S). S = ['1', '2', '.', '3', '5'].
-retezec([],[]).
-retezec([H|T],[C|CT]) :- atom_codes(C,[H]), retezec(T,CT).
-
-
-/** prevede seznam cislic na cislo */
-% pr.: cislo([1,2,'.',3,5],X). X = 12.35
-cislo(N,X) :- cislo(N,0,X).
-cislo([],F,F).
-cislo(['.'|T],F,X) :- !, cislo(T,F,X,10).
-cislo([H|T],F,X) :- FT is 10*F+H, cislo(T,FT,X).
-cislo([],F,F,_).
-cislo([H|T],F,X,P) :- FT is F+H/P, PT is P*10, cislo(T,FT,X,PT).
-
-
-/** existuje knihovni predikat number_chars(?Number, ?CharList) */
-% pr.: number_chars(12.35, ['1', '2', '.', '3', '5']).
+/* funkce member, ale pro listy */
+member_lists(_,[]) :- false.
+member_lists(R,[X|_]) :- same_lists(R,X), same_lists(X,R), true.
+member_lists(R,[_|Xs]) :- member_lists(R,Xs).
