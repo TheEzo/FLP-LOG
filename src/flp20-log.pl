@@ -89,13 +89,13 @@ run(_,_,_).
   * Res:   Vsechny kruznice, return */
 get_circle(_,[],R,_,_,R).
 get_circle(Rls,[R|Rs],Crcls,HamV,Slvd,Res) :- % pravidlo pridalo dalsi bod a je ham kruznice
-	writeln('0-----'),
+	%% writeln('0-----'),
 	join_lists(Rls, [R], NewRls), is_ham(NewRls,HamV), !, 
 	join_lists(Crcls,[NewRls],NewCrcls), 
 	%% format('DONE ~w----------------------~n', [NewRls]),
 	get_circle(Rls,Rs,NewCrcls,HamV,Slvd,Res).
 get_circle(Rls,[R|Rs],Crcls,HamV,Slvd,Res) :- % pravidlo pridalo dalsi bod a neni ham kruznice
-	writeln('1-----'),
+	%% writeln('1-----'),
 	get_vertices(Rls,V), length(V,L), join_lists(Rls, [R], NewRls), 
 	%% format('NewRls: ~w slvd: ~w~n', [NewRls, Slvd]), 
 	check_rules(NewRls,L,Slvd), !, 
@@ -103,7 +103,7 @@ get_circle(Rls,[R|Rs],Crcls,HamV,Slvd,Res) :- % pravidlo pridalo dalsi bod a nen
 	%% format('Next: ~w rest: ~w~n', [Rls, Rs]), 
 	get_circle(Rls,Rs,Crcls,HamV,Slvd,Res2), join_lists(Res1,Res2,Res).
 get_circle(Rls,[R|Rs],Crcls,HamV,Slvd,Res) :- % pravidlo nepridalo dalsi bod (pop R)
-	writeln('2-----'),
+	%% writeln('2-----'),
 	join_lists(Rls,Rs,TmpRules), length(TmpRules,L2), length(HamV,L1), 
 	%% format('2-------rules: ~w~n', [TmpRules]),writeln(L1=<L2), L1-1=<L2,
 	get_circle(Rls,Rs,Crcls,HamV,Slvd,Res).
@@ -127,8 +127,7 @@ check_rules(Rls,Len,Slvd) :-
 /** Zjisti, zda se jedna o Ham kruznici
   * usecky
   * body ktere maji tvorit kruznici */
-is_ham(Rls,HamV) :- get_solved(Rls,_,Slvd), same_lists(HamV,Slvd), true.
-is_ham(_,_) :- false.
+is_ham(Rls,HamV) :- get_solved(Rls,_,Slvd), !, same_lists(HamV,Slvd) -> true; false.
 
 /*get_solved([['A','B'],['C','A'],['C','D']],_,X)*/
 /** najde vyresene vrcholy [[A,B],[C,B]] => [B]
@@ -171,6 +170,7 @@ remove_dups([X|Xs],R) :- remove_dups(Xs,Y), R=[X|Y].
 /* slouci listy A a B do C */
 join_lists([],[],C) :- C=[].
 join_lists([],[B|Bs],C) :- join_lists([],Bs,D), C=[B|D].
+join_lists([A|As],[],C) :- join_lists(As,[],D), C=[A|D].
 join_lists([A|As],B,C) :- join_lists(As,B,D), C=[A|D].
 
 /* najde vsechny vrcholy z primek na vstupu */
