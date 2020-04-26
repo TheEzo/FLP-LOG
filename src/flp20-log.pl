@@ -37,34 +37,23 @@ split_lines([],[]).
 split_lines([L|Ls],[H|T]) :- split_lines(Ls,T), split_line(L,H).
 
 start :-
-		get_time(T1),
-		prompt(_, ''),
-		read_lines(LL),
-		split_lines(LL,S),
-		convert_rules(S,TmpRules),
-		%% print_inp(TmpRules),
-		remove_switched_input(TmpRules,NewRules),
-		%% writeln('---------------'),
-		get_vertices(NewRules,HamV),
-		run(NewRules,HamV,Res),
-		%% writeln('---------------'),
-		remove_duplicated_res(Res,Final),
-		write_output(Final),
-		get_time(T2),
-  		DeltaT is T2- T1,
-  		write('time: '), write(DeltaT), write('  ms.\n'),
-		halt.
-
-
-
-%% start :-
-%% 	A=[['A','B']],
-%% 	B=[['A','C'],['A','D'],['B','C'],['B','D'],['C','D']],
-%% 	C=['A','B','C','D'],
-%% 	get_circle(A,B,[],C,[],R),
-%% 	format('~nResult: ~w~n', [R]),
-%% 	halt.
-
+	get_time(T1),
+	prompt(_, ''),
+	read_lines(LL),
+	split_lines(LL,S),
+	convert_rules(S,TmpRules),
+	%% print_inp(TmpRules),
+	remove_switched_input(TmpRules,NewRules),
+	%% writeln('---------------'),
+	get_vertices(NewRules,HamV),
+	run(NewRules,HamV,Res),
+	%% writeln('---------------'),
+	remove_duplicated_res(Res,Final),
+	write_output(Final),
+	get_time(T2),
+		DeltaT is T2- T1,
+		%% write('time: '), write(DeltaT), write('  ms.\n'),
+	halt.
 
 /* Spusti get_circle s variacemi vstupu */
 run([],_,[]).
@@ -102,13 +91,10 @@ get_circle(Rls,[R|Rs],Crcls,HamV,Slvd,Res) :- % pravidlo pridalo dalsi bod a nen
 	get_solved(NewRls,_,NewSlvd), get_circle(NewRls,Rs,Crcls,HamV,NewSlvd,Res1),
 	%% format('Next: ~w rest: ~w~n', [Rls, Rs]), 
 	get_circle(Rls,Rs,Crcls,HamV,Slvd,Res2), join_lists(Res1,Res2,Res).
-get_circle(Rls,[R|Rs],Crcls,HamV,Slvd,Res) :- % pravidlo nepridalo dalsi bod (pop R)
+get_circle(Rls,[_|Rs],Crcls,HamV,Slvd,Res) :- % pravidlo nepridalo dalsi bod (pop R)
 	%% writeln('2-----'),
-	join_lists(Rls,Rs,TmpRules), length(TmpRules,L2), length(HamV,L1), 
-	%% format('2-------rules: ~w~n', [TmpRules]),writeln(L1=<L2), L1-1=<L2,
 	get_circle(Rls,Rs,Crcls,HamV,Slvd,Res).
-get_circle(Rls,[_|Rs],_,HamV,_,_) :- join_lists(Rls,Rs,TmpRules), format('Skipped: ~w~n', [TmpRules]).
-get_circle(_,_,_,_,_,_) :- writeln('BBBiiiiiiiiiiiiiiiiiig fail').
+get_circle(_,_,_,_,_,_). %% :- writeln('BBBiiiiiiiiiiiiiiiiiig fail').
 
 
 /** zkontroluje, jestli pribyl nejaky bod kruznice
